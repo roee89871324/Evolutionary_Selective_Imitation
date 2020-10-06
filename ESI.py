@@ -38,6 +38,7 @@ TRAIN_REWARD_THREASHOLD = 298
 RUNS_TO_TEST_SOLVED = 100
 REWARD_FOR_SOLVED = 300
 REVERSED = -1
+STEPS_RANDOM_TRAJ = 3000
 
 # global variable that counts overall number of steps
 g_timestep_counter = 0
@@ -64,7 +65,8 @@ def main():
     m = MLP(ENV_INPUTS)
 
     # generate a random trajectory with the random model
-    reward, traj_1d, trajRewards_1d = algo.evaluateAgent(m, 3000, numpy.random.randint(100000), render=False)
+    reward, traj_1d, trajRewards_1d = algo.evaluateAgent(m, STEPS_RANDOM_TRAJ, 
+            numpy.random.randint(100000), render=False)
     randomTrajObj = Traj(traj_1d, reward, m, [], trajRewards_1d)
 
     # run ESI with the random trajectory obejct
@@ -82,6 +84,7 @@ class Traj():
     """
     
     def __init__(self, traj_1d, reward, agent, trainingSample, trajRewards_1d):
+        
         # the actual trajectory - observation, action and reward for every step
         self.traj_1d=numpy.array(traj_1d)
         self.trajRewards_1d=numpy.array(trajRewards_1d)
@@ -99,7 +102,8 @@ class ESI():
     """
     Summary: ESI algorithm
 
-    @param nnImitator (NN_Imitator object): init immitator, the class that trains the NN to imitate the active set
+    @param nnImitator (NN_Imitator object): init immitator, the class that trains the NN 
+        to imitate the active set
     @param gymEnvName (string): the name of the environment ESI would run on
     @param samplesPerTraj (int): number of samples that would be taken for imitation from every trajectory
     @param maxGameLength (int): limit maximum game length, in case of an endless loop
@@ -139,10 +143,11 @@ class ESI():
 
     def improveTrajectory(self, traj):
         """
-        Summary: returns a sample (of length sampleSize) and model that achieved better score than curReward
+        Summary: returns a sample (of length sampleSize) and model that achieved better score 
+            than curReward
 
         @param traj (Traj object): the initial trajectory with which ESI starts to improve. Solves the 
-        	example given (bipedalwalker) here with a random initialization.
+            example given (bipedalwalker) here with a random initialization.
         """
         
         # set initial trajectory
@@ -187,10 +192,11 @@ class ESI():
 
     def _pickleSolution(self, sortedRewards_1d):
         """
-        Summary: of any good enough trajectory was made, try to run it 100 times to test if it solved biped.
+        Summary: of any good enough trajectory was made, try to run it 100 times to test if 
+            it solved biped.
 
-        @param sortedRewards_1d (numpy array): Rewards of all trajectories discovered so far in any execution,
-        	sorted decreasingly
+        @param sortedRewards_1d (numpy array): Rewards of all trajectories discovered so far 
+            in any execution, sorted decreasingly
         """
         
         # iterate over all trajectories 
@@ -208,13 +214,15 @@ class ESI():
             # get the trajectories' average reward over 100 consecutive rounds 
             totReward = 0
             for _ in range(RUNS_TO_TEST_SOLVED):
-                reward, _, _ = self.evaluateAgent(curTraj.agent, self.maxGameLength, numpy.random.randint(100000), render=False)
+                reward, _, _ = self.evaluateAgent(curTraj.agent, self.maxGameLength, 
+                    numpy.random.randint(100000), render=False)
                 totReward += reward
             totReward = totReward / float(RUNS_TO_TEST_SOLVED)
 
             # if reward if >300 then biped is solved. Save the trajectory to disk with pickle.
             if (totReward >= REWARD_FOR_SOLVED):
-                with open('%d_test%d_train%d.pickle' % (startTime%1000000, totReward, r) ,'wb') as f: pickle.dump(curTraj, f)        
+                with open('%d_test%d_train%d.pickle' % (startTime%1000000, totReward, r) ,'wb') \
+                    as f: pickle.dump(curTraj, f)        
 
 
     def _pickNextTraj(self, trajPool_1d):
@@ -223,7 +231,7 @@ class ESI():
             reward sum in all the first samples up to the current scope length.
 
         @param trajPool_1d (numpy array): List of pool trajectories from which one will be chosen for 
-        	the next episode
+            the next episode
 
         @return besttraj (numpy array): the trajectory chosen from the pool
         """
@@ -251,16 +259,20 @@ class ESI():
         for i_sample in range(self.samplesPerTraj):
             
             # sample from the trajectory 
-            sampleIds_1d = numpy.random.randint(low=0, high=min(len(trajObj.traj_1d), self.trajlen), size=int(self.sampleSize))
+            sampleIds_1d = numpy.random.randint(low=0, high=min(len(trajObj.traj_1d), self.trajlen), 
+                size=int(self.sampleSize))
             
             # immitate the sample
-            curModel, imitationCorr = self.nnImitator.gen_imitated_agent(MLP(ENV_INPUTS), trajObj.traj_1d[sampleIds_1d])
+            curModel, imitationCorr = self.nnImitator.gen_imitated_agent(MLP(ENV_INPUTS), 
+                trajObj.traj_1d[sampleIds_1d])
 
             # run the model that is the result of the imitation
-            reward, traj_1d, trajRewards_1d = self.evaluateAgent(curModel, self.maxGameLength, numpy.random.randint(100000), render=False)
+            reward, traj_1d, trajRewards_1d = self.evaluateAgent(curModel, self.maxGameLength, 
+                numpy.random.randint(100000), render=False)
             
             # save results
-            self.trajsToTryQueue[reward] = Traj(traj_1d, reward, curModel, numpy.array(trajObj.traj_1d)[sampleIds_1d], trajRewards_1d)
+            self.trajsToTryQueue[reward] = Traj(traj_1d, reward, curModel, 
+                numpy.array(trajObj.traj_1d)[sampleIds_1d], trajRewards_1d)
 
             # increment sample counter
             self.sampleCounter += 1
@@ -274,11 +286,11 @@ class ESI():
         @param steps (int): number of steps to make in the environment
         @param seed (int): random seed
         @param render (boolean): whether to show the graphics of the robot or not
-		
-		@return total_reward (int): reward sum of the agent on the trajectory
-		@return trajectory_1d (numpy array): trajectory (obervation, action pairs) of agent
-		@return trajRewards_1d (numpy array): reward for each step in the trajectory 
-			(same and matching indices as trajectory_1d)
+        
+        @return total_reward (int): reward sum of the agent on the trajectory
+        @return trajectory_1d (numpy array): trajectory (obervation, action pairs) of agent
+        @return trajRewards_1d (numpy array): reward for each step in the trajectory 
+            (same and matching indices as trajectory_1d)
         """
 
         global g_timestep_counter
@@ -349,9 +361,9 @@ class NN_Imitator():
         @param model (pytorch object): random model to imitate the trajectory
         @param trajectory (numpy array): trajectory (obervation, action pairs) of agent
 
-        @param model (pytorch object): the trained model after it imtiated the data
-        @param imitationCorr (float): how good the imitation was as describe in the correlation 
-        	between the training data and the trained model estimation of the training data
+        @return model (pytorch object): the trained model after it imtiated the data
+        @return imitationCorr (float): how good the imitation was as describe in the correlation 
+            between the training data and the trained model estimation of the training data
         """
         
         # convert trajectory to two numpy arrays for the observation and actions
@@ -377,8 +389,8 @@ class NN_Imitator():
         @param model (pytorch object): random model to imitate the trajectory
         @param train_dl (pytorch dataloader): training data for the model to imitate
 
-        @param corrToData (float): how good the imitation was as describe in the correlation 
-        	between the training data and the trained model estimation of the training data
+        @return corrToData (float): how good the imitation was as describe in the correlation 
+            between the training data and the trained model estimation of the training data
         """
         
         # init optimization
@@ -401,8 +413,8 @@ class NN_Imitator():
 
         # evalute the agent on its own training set to measure effectiveness of imitation by 
         #    pearson correlation
-        corrToData = calcActionsSimilarity(model(torch.from_numpy(train_dl.dataset.X)).cpu().detach().numpy(), 
-            train_dl.dataset.y)    
+        corrToData = calcActionsSimilarity(
+            model(torch.from_numpy(train_dl.dataset.X)).cpu().detach().numpy(), train_dl.dataset.y)    
 
         return corrToData
 
@@ -499,7 +511,8 @@ class MLP(Module):
 
         @param X (pytorch object): observation input batch (2d)
 
-        @return X (pytorch object): input after all the neuralnet transofrmations, i.e the NN estimation.
+        @return X (pytorch object): input after all the neuralnet transofrmations, 
+            i.e the NN estimation.
         """
 
         # input to first hidden layer
