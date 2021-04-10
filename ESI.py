@@ -38,7 +38,7 @@ TRAIN_REWARD_THREASHOLD = 298
 RUNS_TO_TEST_SOLVED = 100
 REWARD_FOR_SOLVED = 300
 REVERSED = -1
-STEPS_RANDOM_TRAJ = 3000
+STEPS_RANDOM_TRAJ = 3000 
 
 # global variable that counts overall number of steps
 g_timestep_counter = 0
